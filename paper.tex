@@ -1,0 +1,221 @@
+\documentclass[11pt]{article}
+
+\usepackage[a4paper,margin=2.5cm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{enumitem}
+
+\title{GRA Forum: Orchestrating AI Agent Debate via Gradient Reduction of Argumentative Foam}
+
+\author{AAA AAA%
+\thanks{ORCID: \href{https://orcid.org/0009-0004-1872-1153}{0009-0004-1872-1153}.%
+Repository: \href{https://github.com/qqewq/gra-forum}{github.com/qqewq/gra-forum}.%
+Zenodo: \href{https://doi.org/10.5281/zenodo.19158686}{10.5281/zenodo.19158686}.}}
+
+\date{March 2026}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+Large language models (LLMs) and other AI agents can be combined into multi-agent systems that debate, collaborate and critique each other.
+However, naive orchestration of such systems quickly degenerates into redundant chatter, unresolved contradictions and unstructured noise.
+This paper introduces \emph{GRA Forum}, a minimal, practical orchestrator for AI agent debate based on the principle of \emph{Gradient Reduction of Argumentative foam} (GRA).
+The core idea is to treat multi-round debates as a dynamical system with explicitly measured ``foam''---a set of scalar functionals capturing conflict, vacuity, redundancy and noise---and to iteratively steer the debate by minimizing a global objective \(J\) over these metrics while preserving constructive disagreement.
+The implementation is released as an open-source Python library.\footnote{\url{https://github.com/qqewq/gra-forum}}[page:0]
+\end{abstract}
+
+\section{Introduction}
+
+Recent progress in large language models and tool-augmented agents has enabled complex multi-agent systems where different models or roles interact in natural language.
+Such systems are used for self-consistency, tool-use orchestration, code review, scientific reasoning and more.
+Yet most existing multi-agent frameworks focus on wiring agents together (who talks to whom) rather than on \emph{controlling the dynamics of argumentation} itself.[page:0]
+
+In practice, unregulated agent debates exhibit several pathological phenomena:
+(i) unresolved contradictions between agents,
+(ii) vacuous or ungrounded statements,
+(iii) redundant restatements of the same content, and
+(iv) low-level noise such as formatting errors or inconsistent output schemas.
+We refer to the aggregate of these phenomena as \emph{argumentative foam}.[page:0]
+
+The GRA Forum project proposes a simple but general principle: treat argumentative foam as a measurable quantity \(\Phi\) on the evolving debate state, define a global cost \(J\) over several foam components, and implement an orchestrator that adapts prompts, questions and agent routing to reduce parasitic foam over successive rounds.[page:0]
+Unlike approaches that aim for immediate consensus, GRA Forum explicitly preserves constructive disagreement as a source of epistemic gain, while penalizing only non-productive components of foam.[page:0]
+
+\section{System Overview}
+
+GRA Forum is organized as a three-level architecture (with possible extensions to additional levels such as physics-informed agents):[page:0]
+
+\begin{itemize}[leftmargin=1.5em]
+\item \textbf{Level 0: Concrete agents.}
+Multiple AI agents (LLM-based or otherwise) answer questions and produce structured replies.
+Typical examples are role-based LLM agents such as a ``GRA optimist'' and a ``physics skeptic'', each configured with its own backend, system prompt and tool set.[page:0]
+
+\item \textbf{Level 1: Forum orchestrator.}
+The orchestrator manages multi-round debates, dispatches questions to agents, collects their replies and maintains a structured representation of the debate state, including extracted claims, embeddings and provenance.[page:0]
+
+\item \textbf{Level 2: GRA core.}
+The GRA core computes foam metrics \(\Phi\) on the debate state, aggregates them into a scalar objective \(J\), and proposes the next-round debate plan (e.g.\ whom to challenge, which contradictions to attack, where to request sources).[page:0]
+\end{itemize}
+
+The repository structure is aligned with this decomposition:[page:0]
+
+\begin{verbatim}
+gra-forum/
+  gra_forum/
+    core/          # GRA core and foam metrics
+    orchestrator/  # Debate orchestrator
+    agents/        # Base and concrete agent implementations
+    models/        # Pydantic (or similar) data models
+    utils/         # Embeddings and helper functions
+  examples/        # Usage examples
+  tests/           # Unit tests
+  docs/            # Documentation
+\end{verbatim}
+
+\section{Foam Metrics and Global Objective}
+
+The GRA core currently implements four foam components: conflict, vacuity, redundancy and noise.[page:0]
+
+\paragraph{Conflict.}
+\(\Phi_{\text{conflict}}\) measures unresolved contradictions between agents.
+Operationally, GRA Forum represents each agent reply as a set of extracted claims plus sentence embeddings.
+Pairs of claims with high semantic anti-correlation (e.g.\ via cosine distance in embedding space) that are not supported by sources or proofs contribute positively to \(\Phi_{\text{conflict}}\).[page:0]
+
+\paragraph{Vacuity.}
+\(\Phi_{\text{vacuity}}\) estimates the fraction of claims that lack verifiable support: missing citations, absence of quantitative checks, or unverifiable vague statements.
+This encourages the orchestrator to push agents towards providing sources, calculations and explicit assumptions.[page:0]
+
+\paragraph{Redundancy.}
+\(\Phi_{\text{redundancy}}\) captures excessive repetition of similar content by different agents without added informational value.
+High similarity of embeddings across claims from different agents, combined with low incremental novelty, increases this term.[page:0]
+
+\paragraph{Noise.}
+\(\Phi_{\text{noise}}\) represents lower-level errors such as invalid JSON, broken formatting or clear violations of basic constraints (e.g.\ impossible numerical values detectable by simple validators).
+In the current MVP this component is implemented as a placeholder that can be refined over time.[page:0]
+
+The global foam functional is then defined as
+\begin{equation}
+  J = w_c \,\Phi_{\text{conflict}} 
+    + w_v \,\Phi_{\text{vacuity}}
+    + w_r \,\Phi_{\text{redundancy}}
+    + w_n \,\Phi_{\text{noise}},
+\end{equation}
+with user-configurable non-negative weights \(w_c, w_v, w_r, w_n\).[page:0]
+The GRA principle is to design the orchestrator such that \(J\) tends to decrease over successive debate rounds, while still allowing non-zero constructive disagreement.[page:0]
+
+\section{Orchestrator Logic}
+
+The \texttt{DebateOrchestrator} class implements the high-level control loop:
+
+\begin{enumerate}[leftmargin=1.5em]
+\item \textbf{Initialization.}
+The user selects a set of Level 0 agents and initializes the GRA core with weights for foam metrics and a maximum number of rounds.[page:0]
+
+\item \textbf{Round execution.}
+Given an initial question, the orchestrator dispatches it to all or a subset of agents, collects their replies, and updates the debate state (claims, embeddings, metadata).[page:0]
+
+\item \textbf{Foam evaluation.}
+The GRA core computes \(\Phi_{\text{conflict}}, \Phi_{\text{vacuity}}, \Phi_{\text{redundancy}}, \Phi_{\text{noise}}\) and \(J\) for the current state.
+The history of \(J\) over rounds can be logged and visualized.[page:0]
+
+\item \textbf{Planning the next round.}
+Based on which foam component dominates, the core selects a strategy:
+\begin{itemize}[leftmargin=1em]
+\item if \(\Phi_{\text{conflict}}\) is high: \texttt{attack} --- confront agents holding opposing positions and request explicit resolution;
+\item if \(\Phi_{\text{vacuity}}\) is high: \texttt{verify} --- ask agents to provide sources, calculations or formal arguments;
+\item if \(\Phi_{\text{redundancy}}\) is high: \texttt{synthesize} --- ask one agent to synthesize and compress overlapping content, and redirect others to unexplored aspects.[page:0]
+\end{itemize}
+
+\item \textbf{Stopping.}
+The debate stops when either the maximum number of rounds is reached or when \(J\) falls below a user-defined threshold, indicating that most parasitic foam has been removed.[page:0]
+\end{enumerate}
+
+A minimal usage example (from the \texttt{examples} directory) illustrates this loop:
+
+\begin{verbatim}
+from gra_forum.orchestrator import DebateOrchestrator
+from gra_forum.agents import RoleBasedAgent
+from gra_forum.core import GRACore
+
+optimist = RoleBasedAgent(
+    agent_id="gra_optimist",
+    role="gra_optimist",
+    llm_backend="openai",
+    api_key="..."
+)
+skeptic = RoleBasedAgent(
+    agent_id="physics_skeptic",
+    role="physics_skeptic",
+    llm_backend="anthropic",
+    api_key="..."
+)
+
+core = GRACore(weights={
+    "conflict": 0.40,
+    "vacuity": 0.35,
+    "redundancy": 0.20,
+    "noise": 0.05,
+})
+
+orchestrator = DebateOrchestrator(
+    agents=[optimist, skeptic],
+    core=core,
+    max_rounds=3,
+)
+
+question = "Can exponential growth in AI agents lead to " \
+           "exponential growth in cognitive capacity?"
+history = orchestrator.run_debate(question)
+orchestrator.plot_J(save_path="debate_results.png")
+\end{verbatim}[page:0]
+
+\section{Extensibility and Physical Agents}
+
+While the initial implementation focuses on text-based LLM agents, the design deliberately separates the GRA core from concrete agent backends.
+Any agent that implements a simple interface
+\begin{verbatim}
+class BaseAgent:
+    async def answer(self, question: str) -> AgentReply:
+        ...
+\end{verbatim}
+can participate in the forum.
+This opens the door to integrating ``physical AI'' agents, such as NVIDIA Omniverse or physics-informed neural network simulators, which can test the physical implications of debated hypotheses in digital twin environments.[web:242][web:247][web:249]
+
+In such settings, foam metrics can be augmented by physical inconsistency terms, e.g.\ deviation between simulated dynamics and basic conservation laws, or disagreement between agents' verbal claims and numerical simulation results.[web:247][web:250]
+
+\section{Conclusion and Future Work}
+
+GRA Forum is a first step towards treating multi-agent AI debates as controlled dynamical systems rather than ad-hoc chains of prompts.
+By explicitly defining and minimizing argumentative foam, the framework aims to:
+(i) preserve productive disagreement,
+(ii) suppress non-productive noise and redundancy,
+and (iii) provide quantitative traces of debate quality over time.[page:0]
+
+Future work includes:
+adding richer claim extraction and contradiction detection,
+integrating external verifiers (symbolic math, code execution, physical simulators),
+and exploring learning-based GRA cores that adapt weights and strategies from data.[web:242][web:247]
+
+\section*{Acknowledgements}
+
+The author thanks the broader AI and open-source communities for inspiration and tools that make such orchestration experiments possible.
+
+\bibliographystyle{plain}
+\begin{thebibliography}{9}
+
+\bibitem{gra_forum}
+AAA AAA.
+\newblock GRA Forum: AI Agent Debate Orchestrator.
+\newblock GitHub repository, \url{https://github.com/qqewq/gra-forum}, 2024.
+
+\bibitem{zenodo}
+AAA AAA.
+\newblock GRA Forum: AI Agent Debate Orchestrator.
+\newblock Zenodo, \url{https://doi.org/10.5281/zenodo.19158686}, 2024.
+
+\end{thebibliography}
+
+\end{document}
