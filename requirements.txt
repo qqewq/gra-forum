@@ -1,0 +1,20 @@
+# Core
+numpy>=1.24.0
+scikit-learn>=1.3.0
+pydantic>=2.0.0
+
+# LLM APIs (выборочно)
+openai>=1.0.0
+anthropic>=0.8.0
+httpx>=0.25.0
+
+# Embeddings (локальная альтернатива API)
+sentence-transformers>=2.2.0  # опционально, для оффлайн
+
+# Utils
+python-dotenv>=1.0.0
+matplotlib>=3.7.0
+pytest>=7.4.0  # dev
+
+# Async
+asyncio-mqtt>=0.16.0  # если нужен брокер сообщений
